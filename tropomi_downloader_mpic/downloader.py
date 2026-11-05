@@ -3,7 +3,9 @@
 import argparse
 import os
 import re
+import sys
 from collections import defaultdict
+from contextlib import redirect_stderr
 from datetime import date as Date, datetime
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -138,13 +140,15 @@ def download(
         raise RuntimeError(authentication_error)
 
     # Fetch granules from Earthdata
-    print(f"Fetching granules for {product}...", end=" ")
-    granules = earthaccess.search_data(
-        short_name=product,
-        version=dataset_version,
-        cloud_hosted=True,
-        temporal=(date_start, date_end),
-    )
+    print(f"Fetching granules for {product}...", end=" ", flush=True)
+    # Route search output to stdout as well
+    with redirect_stderr(sys.stdout):
+        granules = earthaccess.search_data(
+            short_name=product,
+            version=dataset_version,
+            cloud_hosted=True,
+            temporal=(date_start, date_end),
+        )
 
     if not granules:
         print("No matching granules found.")
@@ -175,12 +179,15 @@ def download(
     for directory, directory_granules in granules_by_directory.items():
         directory.mkdir(parents=True, exist_ok=True)
         print(f"Downloading {len(directory_granules)} granules to {directory}")
-        earthaccess.download(
-            directory_granules,
-            local_path=directory,
-            threads=threads,
-            show_progress=True,
-        )
+        # Route download output and progress bars to stdout
+        with redirect_stderr(sys.stdout):
+            earthaccess.download(
+                directory_granules,
+                local_path=directory,
+                threads=threads,
+                show_progress=True,
+                pqdm_kwargs={"file": sys.stdout},
+            )
 
     return
 
