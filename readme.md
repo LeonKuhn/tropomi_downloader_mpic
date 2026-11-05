@@ -38,7 +38,7 @@ existing credentials file.
 See also [NASA's credential setup instructions](https://urs.earthdata.nasa.gov/documentation/for_users/data_access/curl_and_wget).
 
 
-## Usage
+## Usage from the command line
 
 To download NO2 data for a single day (here: 2022-04-06), run:
 
@@ -80,3 +80,22 @@ Note that:
 - `threads` must be at least one. 
 - Relative output paths are resolved against the current working directory.
 - The available product shortnames are available under [available TROPOMI products in Earthdata Search](https://registry.opendata.aws/nasa-sentinel-5p/).
+
+## Usage from within Python
+
+After installing the package into your script's Python environment:
+
+```python
+from tropomi_downloader_mpic import download
+
+files = download(
+    product="S5P_L2__NO2____HiR",
+    start_date="2022-04-06",
+    end_date="2022-04-08",
+    output_dir="./data",
+    threads=4,
+)
+```
+
+Dates accept `YYYY-MM-DD` strings or `datetime.date` objects. Both boundary days
+are included. `output_dir` accepts a string or `pathlib.Path`.

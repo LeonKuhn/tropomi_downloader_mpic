@@ -4,7 +4,7 @@ import argparse
 import os
 import re
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date as Date, datetime
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -49,49 +49,74 @@ def granule_subdirectory(filename):
     return relative_output_dir
 
 
-def main(argv=None):
+def _as_date(value, name):
     """
-    Parse CLI arguments and download granules without interactive prompts.
+    Accept calendar dates as date objects or ISO strings.
     """
 
-    parser = argparse.ArgumentParser(description="Download TROPOMI granules from NASA Earthdata.")
-    parser.add_argument("product", help="Earthdata product short name (e.g. 'S5P_L2__NO2____HiR')")
-    parser.add_argument("--date", "-d", type=date.fromisoformat, help="Single day to download (YYYY-MM-DD); use instead of --start_date and --end_date")
-    parser.add_argument("--start_date", "-s", type=date.fromisoformat, help="First day to include (YYYY-MM-DD)")
-    parser.add_argument("--end_date", "-e", type=date.fromisoformat, help="Last day to include (YYYY-MM-DD)")
-    parser.add_argument("--dataset_version", "-v", default=DEFAULT_DATASET_VERSION, help="Dataset version (default: %(default)s)")
-    parser.add_argument("--output_dir", "-o", type=Path, required=True, help="Root directory for the inferred product/date directory structure")
-    parser.add_argument("--threads", type=int, default=DEFAULT_THREADS, help="Number of download threads (default: %(default)s)")
-    args = parser.parse_args(argv)
-    args.output_dir = args.output_dir.expanduser().resolve()
+    # if value is an ISO string → convert to date object
+    if isinstance(value, str):
+        return Date.fromisoformat(value)
+
+    # if value is already a date (not a datetime), return as is
+    if isinstance(value, Date) and not isinstance(value, datetime):
+        return value
+
+    raise TypeError(f"{name} must be a datetime.date or YYYY-MM-DD string")
+
+
+def download(
+    product: str,
+    *,
+    output_dir: str | Path,
+    date: str | Date | None = None,
+    start_date: str | Date | None = None,
+    end_date: str | Date | None = None,
+    dataset_version: str = DEFAULT_DATASET_VERSION,
+    threads: int = DEFAULT_THREADS,
+):
+    """
+    Download granules belonging to the specified `product`.
+
+    Supply either date or both start_date and end_date; boundary days are
+    included.
+
+    Authentication uses NETRC or ~/.netrc without prompting.
+    """
 
     # User must specify either `date` or a combination of `start_date` and `end_date`
-    if args.date is not None:
-        if args.start_date is not None or args.end_date is not None:
-            parser.error("--date cannot be combined with --start_date or --end_date")
-        args.start_date = args.end_date = args.date
+    if date is not None:
+        if start_date is not None or end_date is not None:
+            raise ValueError("date cannot be combined with start_date or end_date")
+        start_date = end_date = _as_date(date, "date")
+    elif start_date is None or end_date is None:
+        raise ValueError("provide either date or both start_date and end_date")
 
-    # If 'date' is specified, neither 'start_date' nor 'end_date' must be specified
-    elif args.start_date is None or args.end_date is None:
-        parser.error("provide either --date or both --start_date and --end_date")
+    # Convert date strings supplied through the Python API to date objects
+    else:
+        start_date = _as_date(start_date, "start_date")
+        end_date = _as_date(end_date, "end_date")
 
     # 'start_date' must be on or before 'end_date'
-    if args.start_date > args.end_date:
-        parser.error("start_date must be on or before end_date")
+    if start_date > end_date:
+        raise ValueError("start_date must be on or before end_date")
 
-    # 'threads' must be at least 1
-    if args.threads < 1:
-        parser.error("threads must be at least 1")
+    # 'threads' must be an integer and at least 1
+    if isinstance(threads, bool) or not isinstance(threads, int):
+        raise TypeError("threads must be an integer")
+    if threads < 1:
+        raise ValueError("threads must be at least 1")
+
+    # Resolve the output directory once for both display and downloading
+    output_dir = Path(output_dir).expanduser().resolve()
 
     print("Welcome to TROPOMI download (MPIC)")
-
-    # Notify user about output location
-    print(f"Downloaded data will be stored under {args.output_dir}")
+    print(f"Downloaded data will be stored under {output_dir}")
 
     # Read Earthdata credentials from NETRC or the default ~/.netrc.
     netrc_path = Path(os.environ.get("NETRC", "~/.netrc")).expanduser()
     if not netrc_path.is_file():
-        raise SystemExit(
+        raise FileNotFoundError(
             f"Earthdata credentials file not found: {netrc_path}\n"
             "Create ~/.netrc with an entry for machine urs.earthdata.nasa.gov, "
             "including login and password, or set the environment variable `NETRC` to an existing credentials file.\n"
@@ -110,17 +135,17 @@ def main(argv=None):
     )
     try:
         auth = earthaccess.login(strategy="netrc", persist=False)
-    except (LoginAttemptFailure, LoginStrategyUnavailable):
-        raise SystemExit(authentication_error)
+    except (LoginAttemptFailure, LoginStrategyUnavailable) as error:
+        raise RuntimeError(authentication_error)
     if not auth.authenticated:
-        raise SystemExit(authentication_error)
+        raise RuntimeError(authentication_error)
 
     # Fetch granules from Earthdata
     granules = earthaccess.search_data(
-        short_name=args.product,
-        version=args.dataset_version,
+        short_name=product,
+        version=dataset_version,
         cloud_hosted=True,
-        temporal=(args.start_date, args.end_date),
+        temporal=(start_date, end_date),
     )
 
     if not granules:
@@ -143,7 +168,7 @@ def main(argv=None):
             raise ValueError(f"Expected a NetCDF (.nc) data URL, received: {urls[0]}")
 
         subdirectory = granule_subdirectory(filename)
-        directory = args.output_dir / subdirectory
+        directory = output_dir / subdirectory
         granules_by_directory[directory].append(granule)
 
     # start download
@@ -153,10 +178,47 @@ def main(argv=None):
         earthaccess.download(
             directory_granules,
             local_path=directory,
-            threads=args.threads,
+            threads=threads,
             show_progress=True,
         )
 
+    return
+
+
+def main(argv=None):
+    """
+    Parse CLI arguments and download granules without interactive prompts.
+    """
+
+    parser = argparse.ArgumentParser(description="Download TROPOMI granules from NASA Earthdata.")
+    parser.add_argument("product", help="Earthdata product short name (e.g. 'S5P_L2__NO2____HiR')")
+    parser.add_argument("--date", "-d", type=Date.fromisoformat, help="Single day to download (YYYY-MM-DD); use instead of --start_date and --end_date")
+    parser.add_argument("--start_date", "-s", type=Date.fromisoformat, help="First day to include (YYYY-MM-DD)")
+    parser.add_argument("--end_date", "-e", type=Date.fromisoformat, help="Last day to include (YYYY-MM-DD)")
+    parser.add_argument("--dataset_version", "-v", default=DEFAULT_DATASET_VERSION, help="Dataset version (default: %(default)s)")
+    parser.add_argument("--output_dir", "-o", type=Path, required=True, help="Root directory for the inferred product/date directory structure")
+    parser.add_argument("--threads", type=int, default=DEFAULT_THREADS, help="Number of download threads (default: %(default)s)")
+    args = parser.parse_args(argv)
+
+    # Use the same download function as callers of the Python API
+    try:
+        download(
+            args.product,
+            date=args.date,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            dataset_version=args.dataset_version,
+            output_dir=args.output_dir,
+            threads=args.threads,
+        )
+
+    # Report invalid arguments through argparse
+    except (ValueError, TypeError) as error:
+        parser.error(str(error))
+
+    # Exit the CLI on failure; the Python API raises exceptions instead
+    except (FileNotFoundError, RuntimeError) as error:
+        raise SystemExit(str(error)) from None
 
 if __name__ == "__main__":
     main()
