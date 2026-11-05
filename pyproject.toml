@@ -7,6 +7,8 @@ name = "tropomi_downloader_mpic"
 version = "0.1.0"
 description = "Download TROPOMI granules from NASA Earthdata into a product and date directory structure"
 readme = "readme.md"
+license = "0BSD"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 dependencies = ["earthaccess>=0.19.0"]
 

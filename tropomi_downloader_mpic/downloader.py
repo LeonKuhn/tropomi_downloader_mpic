@@ -68,7 +68,7 @@ def _as_date(value, name):
 def download(
     product: str,
     *,
-    output_dir: str | Path,
+    output_dir: str | Path = ".",
     date: str | Date | None = None,
     start_date: str | Date | None = None,
     end_date: str | Date | None = None,
@@ -196,7 +196,7 @@ def main(argv=None):
     parser.add_argument("--start_date", "-s", type=Date.fromisoformat, help="First day to include (YYYY-MM-DD)")
     parser.add_argument("--end_date", "-e", type=Date.fromisoformat, help="Last day to include (YYYY-MM-DD)")
     parser.add_argument("--dataset_version", "-v", default=DEFAULT_DATASET_VERSION, help="Dataset version (default: %(default)s)")
-    parser.add_argument("--output_dir", "-o", type=Path, required=True, help="Root directory for the inferred product/date directory structure")
+    parser.add_argument("--output_dir", "-o", type=Path, default=Path("."), help="Root directory for the inferred product/date directory structure (default: current working directory)")
     parser.add_argument("--threads", type=int, default=DEFAULT_THREADS, help="Number of download threads (default: %(default)s)")
     args = parser.parse_args(argv)
 

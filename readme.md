@@ -71,7 +71,7 @@ The full table of arguments is given below:
 | `--start_date`, `-s` | First day of a date range | Required with `--end_date` |
 | `--end_date`, `-e` | Last day of a date range | Required with `--start_date` |
 | `--dataset_version`, `-v` | Earthdata dataset version | `2` |
-| `--output_dir`, `-o` | Root directory for downloaded data | Required |
+| `--output_dir`, `-o` | Root directory for downloaded data | Current working directory |
 | `--threads` | Download threads per directory | `1` |
 
 Note that:
@@ -88,7 +88,7 @@ After installing the package into your script's Python environment:
 ```python
 from tropomi_downloader_mpic import download
 
-files = download(
+download(
     product="S5P_L2__NO2____HiR",
     start_date="2022-04-06",
     end_date="2022-04-08",
@@ -98,4 +98,13 @@ files = download(
 ```
 
 Dates accept `YYYY-MM-DD` strings or `datetime.date` objects. Both boundary days
-are included. `output_dir` accepts a string or `pathlib.Path`.
+are included. `output_dir` accepts a string or `pathlib.Path` and defaults to the
+current working directory when omitted. The product and date subdirectories are
+created beneath this directory.
+
+## License
+
+This code is available under the [Zero-Clause BSD license (0BSD)](LICENSE).
+You may use, copy, modify, and redistribute it for any purpose, including
+commercial use, without attribution or a requirement to publish your changes.
+The software is provided without warranty.
