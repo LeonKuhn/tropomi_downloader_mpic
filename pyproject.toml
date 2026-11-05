@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tropomi_downloader_mpic"
+version = "0.1.0"
+description = "Download TROPOMI granules from NASA Earthdata into a product and date directory structure"
+readme = "readme.md"
+requires-python = ">=3.12"
+dependencies = ["earthaccess>=0.19.0"]
+
+[project.scripts]
+tropomi_download = "tropomi_downloader_mpic.downloader:main"
+
+[project.urls]
+Repository = "https://github.com/LeonKuhn/tropomi_downloader_mpic"
+Documentation = "https://github.com/LeonKuhn/tropomi_downloader_mpic#readme"
+
+[tool.setuptools]
+packages = ["tropomi_downloader_mpic"]
