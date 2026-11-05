@@ -1,0 +1,57 @@
+name: Publish to PyPI
+
+# Publish only when a GitHub release is published, not on ordinary pushes.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and check distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: python -m pip install build twine
+
+      - name: Build wheel and source archive
+        run: python -m build
+
+      - name: Check package metadata and README
+        run: python -m twine check dist/*
+
+      - name: Store distributions for the publishing job
+        uses: actions/upload-artifact@v5
+        with:
+          name: distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish distributions
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/tropomi_downloader_mpic
+    permissions:
+      id-token: write
+    steps:
+      - name: Retrieve built distributions
+        uses: actions/download-artifact@v6
+        with:
+          name: distributions
+          path: dist/
+
+      - name: Publish using PyPI Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1

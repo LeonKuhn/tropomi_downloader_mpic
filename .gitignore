@@ -34,3 +34,5 @@ _netrc
 L2/
 *.nc
 
+# personal notes
+notes_pypi.md
