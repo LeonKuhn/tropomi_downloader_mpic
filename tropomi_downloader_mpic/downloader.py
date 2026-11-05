@@ -70,36 +70,36 @@ def download(
     *,
     output_dir: str | Path = ".",
     date: str | Date | None = None,
-    start_date: str | Date | None = None,
-    end_date: str | Date | None = None,
+    date_start: str | Date | None = None,
+    date_end: str | Date | None = None,
     dataset_version: str = DEFAULT_DATASET_VERSION,
     threads: int = DEFAULT_THREADS,
 ):
     """
     Download granules belonging to the specified `product`.
 
-    Supply either date or both start_date and end_date; boundary days are
+    Supply either date or both date_start and date_end; boundary days are
     included.
 
     Authentication uses NETRC or ~/.netrc without prompting.
     """
 
-    # User must specify either `date` or a combination of `start_date` and `end_date`
+    # User must specify either `date` or a combination of `date_start` and `date_end`
     if date is not None:
-        if start_date is not None or end_date is not None:
-            raise ValueError("date cannot be combined with start_date or end_date")
-        start_date = end_date = _as_date(date, "date")
-    elif start_date is None or end_date is None:
-        raise ValueError("provide either date or both start_date and end_date")
+        if date_start is not None or date_end is not None:
+            raise ValueError("date cannot be combined with date_start or date_end")
+        date_start = date_end = _as_date(date, "date")
+    elif date_start is None or date_end is None:
+        raise ValueError("provide either date or both date_start and date_end")
 
     # Convert date strings supplied through the Python API to date objects
     else:
-        start_date = _as_date(start_date, "start_date")
-        end_date = _as_date(end_date, "end_date")
+        date_start = _as_date(date_start, "date_start")
+        date_end = _as_date(date_end, "date_end")
 
-    # 'start_date' must be on or before 'end_date'
-    if start_date > end_date:
-        raise ValueError("start_date must be on or before end_date")
+    # 'date_start' must be on or before 'date_end'
+    if date_start > date_end:
+        raise ValueError("date_start must be on or before date_end")
 
     # 'threads' must be an integer and at least 1
     if isinstance(threads, bool) or not isinstance(threads, int):
@@ -109,9 +109,6 @@ def download(
 
     # Resolve the output directory once for both display and downloading
     output_dir = Path(output_dir).expanduser().resolve()
-
-    print("Welcome to TROPOMI download (MPIC)")
-    print(f"Downloaded data will be stored under {output_dir}")
 
     # Read Earthdata credentials from NETRC or the default ~/.netrc.
     netrc_path = Path(os.environ.get("NETRC", "~/.netrc")).expanduser()
@@ -141,16 +138,19 @@ def download(
         raise RuntimeError(authentication_error)
 
     # Fetch granules from Earthdata
+    print(f"Fetching granules for {product}...", end=" ")
     granules = earthaccess.search_data(
         short_name=product,
         version=dataset_version,
         cloud_hosted=True,
-        temporal=(start_date, end_date),
+        temporal=(date_start, date_end),
     )
 
     if not granules:
         print("No matching granules found.")
         return
+
+    print(f"Found {len(granules)}.")
 
     # In order to achieve our desired output directory tree, we must call earthacess.download once per output directory
     # (this is defined by `OUTPUT_DIR_TEMPLATE` above)
@@ -192,21 +192,23 @@ def main(argv=None):
 
     parser = argparse.ArgumentParser(description="Download TROPOMI granules from NASA Earthdata.")
     parser.add_argument("product", help="Earthdata product short name (e.g. 'S5P_L2__NO2____HiR')")
-    parser.add_argument("--date", "-d", type=Date.fromisoformat, help="Single day to download (YYYY-MM-DD); use instead of --start_date and --end_date")
-    parser.add_argument("--start_date", "-s", type=Date.fromisoformat, help="First day to include (YYYY-MM-DD)")
-    parser.add_argument("--end_date", "-e", type=Date.fromisoformat, help="Last day to include (YYYY-MM-DD)")
+    parser.add_argument("--date", "-d", type=Date.fromisoformat, help="Single day to download (YYYY-MM-DD); use instead of --date_start and --date_end")
+    parser.add_argument("--date_start", "-s", type=Date.fromisoformat, help="First day to include (YYYY-MM-DD)")
+    parser.add_argument("--date_end", "-e", type=Date.fromisoformat, help="Last day to include (YYYY-MM-DD)")
     parser.add_argument("--dataset_version", "-v", default=DEFAULT_DATASET_VERSION, help="Dataset version (default: %(default)s)")
     parser.add_argument("--output_dir", "-o", type=Path, default=Path("."), help="Root directory for the inferred product/date directory structure (default: current working directory)")
     parser.add_argument("--threads", type=int, default=DEFAULT_THREADS, help="Number of download threads (default: %(default)s)")
     args = parser.parse_args(argv)
+
+    print("Welcome to TROPOMI download (MPIC)")
 
     # Use the same download function as callers of the Python API
     try:
         download(
             args.product,
             date=args.date,
-            start_date=args.start_date,
-            end_date=args.end_date,
+            date_start=args.date_start,
+            date_end=args.date_end,
             dataset_version=args.dataset_version,
             output_dir=args.output_dir,
             threads=args.threads,

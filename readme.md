@@ -50,7 +50,7 @@ In order to download orbits within a date range (here: 2022-04-06 to 2022-04-08)
 
 ```bash
 tropomi_download S5P_L2__NO2____HiR \
-  --start_date 2022-04-06 --end_date 2022-04-08
+  --date_start 2022-04-06 --date_end 2022-04-08
 ```
 
 By default, `tropomi_download` stores the downloaded files in the current working directory.
@@ -58,7 +58,7 @@ The output directory can be specified using `--output_dir` or `-o`, e.g.:
 
 ```bash
 tropomi_download S5P_L2__NO2____HiR \
-  --start_date 2022-04-06 --end_date 2022-04-08 \
+  --date_start 2022-04-06 --date_end 2022-04-08 \
   --output_dir ~/tropomi_data
 ```
 
@@ -68,15 +68,15 @@ The full table of arguments is given below:
 | --- | --- | --- |
 | `product` | Earthdata product short name | Required |
 | `--date`, `-d` | One day, in `YYYY-MM-DD` format | Supply this or both range boundaries |
-| `--start_date`, `-s` | First day of a date range | Required with `--end_date` |
-| `--end_date`, `-e` | Last day of a date range | Required with `--start_date` |
+| `--date_start`, `-s` | First day of a date range | Required with `--date_end` |
+| `--date_end`, `-e` | Last day of a date range | Required with `--date_start` |
 | `--dataset_version`, `-v` | Earthdata dataset version | `2` |
 | `--output_dir`, `-o` | Root directory for downloaded data | Current working directory |
 | `--threads` | Download threads per directory | `1` |
 
 Note that:
 
-- `--date` and the date range arguments `--start_date` and `--end_date` are mutually exclusive. 
+- `--date` and the date range arguments `--date_start` and `--date_end` are mutually exclusive.
 - `threads` must be at least one. 
 - Relative output paths are resolved against the current working directory.
 - The available product shortnames are available under [available TROPOMI products in Earthdata Search](https://registry.opendata.aws/nasa-sentinel-5p/).
@@ -90,8 +90,8 @@ from tropomi_downloader_mpic import download
 
 download(
     product="S5P_L2__NO2____HiR",
-    start_date="2022-04-06",
-    end_date="2022-04-08",
+    date_start="2022-04-06",
+    date_end="2022-04-08",
     output_dir="./data",
     threads=4,
 )
