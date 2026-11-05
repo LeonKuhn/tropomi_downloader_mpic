@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tropomi_downloader_mpic"
-version = "0.1.1"
+version = "0.1.2"
 description = "Download TROPOMI granules from NASA Earthdata into a product and date directory structure"
 readme = "readme.md"
 license = "0BSD"
